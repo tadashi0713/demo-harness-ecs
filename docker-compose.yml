@@ -1,0 +1,57 @@
+x-build: &build
+  context: .
+  secrets:
+    - extra_ca
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: booking
+      POSTGRES_PASSWORD: booking
+      POSTGRES_DB: booking
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking -d booking"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      <<: *build
+      target: migrator
+    image: room-booking-migrator:latest
+    environment:
+      DATABASE_URL: postgresql://booking:booking@db:5432/booking
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      <<: *build
+      target: runner
+    image: room-booking:latest
+    environment:
+      DATABASE_URL: postgresql://booking:booking@db:5432/booking
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+secrets:
+  extra_ca:
+    file: ${EXTRA_CA_CERT:-/dev/null}
+
+volumes:
+  db-data:

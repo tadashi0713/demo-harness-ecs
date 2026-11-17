@@ -1,0 +1,307 @@
+pipeline:
+  name: Demo Pipeline AWS ECS
+  identifier: Demo_Pipeline_AWS_ECS
+  description: CI pipeline for room-booking (Next.js + PostgreSQL) with testing, SAST, supply chain and container scanning
+  projectIdentifier: tadashi
+  orgIdentifier: sandbox
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        connectorRef: TadashiGitHubConnector
+        repoName: demo-harness-ecs
+        build: <+input>
+  stages:
+    - stage:
+        name: Build - Test - Push
+        identifier: Build_Test_Push
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: false
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Arm64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - stepGroup:
+                  name: Build and Test
+                  identifier: Build_and_Test
+                  steps:
+                    - step:
+                        type: Run
+                        name: Install Dependencies
+                        identifier: Install_Dependencies
+                        spec:
+                          connectorRef: tadashipublicdockerhub
+                          image: node:24
+                          shell: Sh
+                          command: npm ci
+                    - parallel:
+                        - step:
+                            type: Test
+                            name: Test Intelligence
+                            identifier: Test_Intelligence
+                            spec:
+                              connectorRef: tadashipublicdockerhub
+                              image: node:24
+                              shell: Sh
+                              command: npx vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml
+                              reports:
+                                type: JUnit
+                                spec:
+                                  paths:
+                                    - reports/junit.xml
+                              intelligenceMode: true
+                        - step:
+                            type: Run
+                            name: Lint
+                            identifier: Lint
+                            spec:
+                              connectorRef: tadashipublicdockerhub
+                              image: node:24
+                              shell: Sh
+                              command: |-
+                                npm run lint
+                                npm run typecheck
+                        - step:
+                            type: Run
+                            name: Build
+                            identifier: Build
+                            spec:
+                              connectorRef: tadashipublicdockerhub
+                              image: node:24
+                              shell: Sh
+                              command: npm run build
+              - stepGroup:
+                  name: SAST
+                  identifier: SAST
+                  steps:
+                    - parallel:
+                        - step:
+                            type: HarnessSAST
+                            name: Harness Code
+                            identifier: HarnessCode
+                            spec:
+                              mode: orchestration
+                              config: sast
+                              target:
+                                type: repository
+                                detection: auto
+                              advanced:
+                                log:
+                                  level: info
+                        - step:
+                            type: Sonarqube
+                            name: Sonarqube
+                            identifier: Sonarqube
+                            spec:
+                              mode: orchestration
+                              config: default
+                              target:
+                                type: repository
+                                detection: auto
+                              advanced:
+                                log:
+                                  level: info
+                                args:
+                                  cli: "-Dsonar.organization=tadashi0713"
+                              settings:
+                                product_organization_id: tadashi0713
+                              auth:
+                                access_token: <+secrets.getValue("tadashi-sonarcloud-token")>
+                                domain: https://sonarcloud.io
+                                ssl: true
+                        - step:
+                            type: Snyk
+                            name: Snyk SAST
+                            identifier: Snyk_SAST
+                            spec:
+                              mode: orchestration
+                              config: code
+                              target:
+                                type: repository
+                                detection: auto
+                              advanced:
+                                log:
+                                  level: info
+                              privileged: true
+                              auth:
+                                access_token: <+secrets.getValue("tadashi-snyk-token")>
+                              sbom:
+                                format: spdx-json
+              - step:
+                  type: BuildAndPushECR
+                  name: Push to AWS ECR
+                  identifier: BuildAndPushECR
+                  spec:
+                    connectorRef: account.AWS
+                    region: ap-northeast-1
+                    account: "759984737373"
+                    imageName: tadashi-demo-ecs
+                    tags:
+                      - <+pipeline.executionId>
+                    caching: false
+                    target: runner
+              - stepGroup:
+                  name: Supply Chain
+                  identifier: Supply_Chain
+                  steps:
+                    - step:
+                        type: SscaOrchestration
+                        name: Generate SBOM
+                        identifier: Generate_SBOM
+                        spec:
+                          mode: generation
+                          tool:
+                            type: Syft
+                            spec:
+                              format: spdx-json
+                          source:
+                            type: ecr
+                            spec:
+                              connector: account.AWS
+                              image: tadashi-demo-ecs:<+pipeline.executionId>
+                              region: ap-northeast-1
+                              account: "759984737373"
+                          attestation:
+                            type: keyless
+                            spec:
+                              oidcProvider: harness
+                          sbom_drift:
+                            base: last_generated_sbom
+                          resources:
+                            limits:
+                              memory: 500Mi
+                              cpu: "0.5"
+                    - step:
+                        type: provenance
+                        name: SLSA Generation
+                        identifier: SLSA_Generation
+                        spec:
+                          source:
+                            type: ecr
+                            spec:
+                              connector: account.AWS
+                              image: tadashi-demo-ecs:<+pipeline.executionId>
+                              region: ap-northeast-1
+                              account: "759984737373"
+                          attestation:
+                            type: keyless
+                            spec:
+                              oidcProvider: harness
+                          resources:
+                            limits:
+                              memory: 500Mi
+                              cpu: "0.5"
+                    - step:
+                        type: SscaArtifactSigning
+                        name: Artifact Signing
+                        identifier: Artifact_Signing
+                        spec:
+                          source:
+                            type: ecr
+                            spec:
+                              connector: account.AWS
+                              image: tadashi-demo-ecs:<+pipeline.executionId>
+                              region: ap-northeast-1
+                              account: "759984737373"
+                          signing:
+                            type: keyless
+                            spec:
+                              oidcProvider: harness
+                          resources:
+                            limits:
+                              memory: 500Mi
+                              cpu: "0.5"
+              - stepGroup:
+                  name: Container Scan
+                  identifier: Container_Scan
+                  steps:
+                    - parallel:
+                        - step:
+                            type: AquaTrivy
+                            name: Trivy
+                            identifier: Trivy
+                            spec:
+                              mode: orchestration
+                              config: default
+                              target:
+                                type: container
+                                detection: auto
+                              advanced:
+                                log:
+                                  level: info
+                              privileged: true
+                              image:
+                                type: aws_ecr
+                                domain: 759984737373.dkr.ecr.ap-northeast-1.amazonaws.com
+                                name: tadashi-demo-ecs
+                                tag: <+pipeline.executionId>
+                                region: ap-northeast-1
+                                access_id: <+secrets.getValue("account.AWS_Access_Key")>
+                                access_token: <+secrets.getValue("account.AWS_Secret_Access_Key")>
+                              sbom:
+                                format: spdx-json
+                        - step:
+                            type: HarnessSCA
+                            name: Harness Container
+                            identifier: Harness_Container
+                            spec:
+                              mode: orchestration
+                              config: default
+                              target:
+                                type: container
+                                detection: auto
+                              advanced:
+                                log:
+                                  level: info
+                              privileged: true
+                              image:
+                                type: aws_ecr
+                                domain: 759984737373.dkr.ecr.ap-northeast-1.amazonaws.com
+                                name: tadashi-demo-ecs
+                                tag: <+pipeline.executionId>
+                                region: ap-northeast-1
+                                access_id: <+secrets.getValue("account.AWS_Access_Key")>
+                                access_token: <+secrets.getValue("account.AWS_Secret_Access_Key")>
+                        - step:
+                            type: Snyk
+                            name: Snyk Container
+                            identifier: Snyk_Container
+                            spec:
+                              mode: orchestration
+                              config: container
+                              target:
+                                type: container
+                                detection: auto
+                              advanced:
+                                log:
+                                  level: info
+                              privileged: true
+                              image:
+                                type: aws_ecr
+                                domain: 759984737373.dkr.ecr.ap-northeast-1.amazonaws.com
+                                name: tadashi-demo-ecs
+                                tag: <+pipeline.executionId>
+                                region: ap-northeast-1
+                                access_id: <+secrets.getValue("account.AWS_Access_Key")>
+                                access_token: <+secrets.getValue("account.AWS_Secret_Access_Key")>
+                              auth:
+                                access_token: <+secrets.getValue("tadashi-snyk-token")>
+                              sbom:
+                                format: spdx-json
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: MarkAsFailure

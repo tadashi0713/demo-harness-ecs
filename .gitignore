@@ -10,3 +10,8 @@ playwright-report/
 test-results/
 blob-report/
 coverage/
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars

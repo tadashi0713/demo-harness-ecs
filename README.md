@@ -62,6 +62,28 @@ docker compose up -d --build --wait
 npm run test:e2e         # BASE_URL (既定: http://localhost:3000) に対して実行
 ```
 
+## AWS ECS へのデプロイ
+
+```
+terraform/
+  shared/            # ECR (tadashi-demo-ecs, tadashi-demo-ecs-migrator)。最初に一度だけ apply
+  envs/stg/          # ステージング
+  envs/prod/         # 本番
+  modules/ecs-app/   # VPC / ALB / RDS PostgreSQL / ECS クラスタ / IAM / Secrets Manager / CloudWatch Logs
+deploy/ecs/          # Harness CD 用の ECS タスク定義・サービス定義
+```
+
+- Terraform はインフラまでを作成し、ECS サービスとタスク定義は Harness CD が `deploy/ecs/` を使ってデプロイします
+- state は Harness IaCM で管理する前提のため `backend` は定義していません。IaCM のワークスペースを `terraform/shared`、`terraform/envs/stg`、`terraform/envs/prod` の 3 つ作成します
+- タスクは NAT Gateway を使わずパブリックサブネットに配置し (パブリック IP あり)、セキュリティグループで ALB からの通信のみ許可します。RDS はインターネット経路のないサブネットに配置します
+- `DATABASE_URL` は Terraform が Secrets Manager に作成し、ECS がコンテナに注入します
+- タスクは `migrate` (migrator イメージ: マイグレーション + seed) が正常終了してから `app` (runner イメージ) が起動します
+- イメージは ARM64 (Fargate Graviton) を前提としています
+- デモ用のため stg と prod は同じ低コスト構成です: RDS db.t4g.micro (Single-AZ、バックアップ 1 日、削除保護なし)、Fargate Spot でタスク 1 つ、Container Insights 無効、ログ保持 7 日
+- デプロイ戦略は Harness 側で選びます。stg はローリングアップデート、prod はカナリアリリースを想定しています。Harness の ECS カナリアは同じターゲットグループにカナリア用サービスを一時的に追加するため、インフラは両環境で共通です
+
+apply 後、`terraform output harness_env_variables` の値を Harness の各 Environment (stg / prod) の変数として登録し、Infrastructure Definition にはクラスタ名 (`ecs_cluster_name`) とリージョンを設定します。Harness の Service ではプライマリアーティファクトに `tadashi-demo-ecs`、サイドカーアーティファクト (識別子 `migrator`) に `tadashi-demo-ecs-migrator` を指定します。
+
 ## API 例
 
 ```bash

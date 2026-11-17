@@ -1,0 +1,44 @@
+# Harness ECS task definition. <+env.variables.*> come from the Terraform output harness_env_variables.
+# The migrate container runs prisma migrate deploy + seed and must exit 0 before the app starts.
+family: room-booking-<+env.identifier>
+networkMode: awsvpc
+requiresCompatibilities:
+  - FARGATE
+cpu: "256"
+memory: "512"
+runtimePlatform:
+  cpuArchitecture: ARM64
+  operatingSystemFamily: LINUX
+executionRoleArn: <+env.variables.ecs_execution_role_arn>
+taskRoleArn: <+env.variables.ecs_task_role_arn>
+containerDefinitions:
+  - name: migrate
+    image: <+artifacts.sidecars.migrator.image>
+    essential: false
+    secrets:
+      - name: DATABASE_URL
+        valueFrom: <+env.variables.database_url_secret_arn>
+    logConfiguration:
+      logDriver: awslogs
+      options:
+        awslogs-group: <+env.variables.ecs_log_group_name>
+        awslogs-region: ap-northeast-1
+        awslogs-stream-prefix: migrate
+  - name: app
+    image: <+artifacts.primary.image>
+    essential: true
+    portMappings:
+      - containerPort: 3000
+        protocol: tcp
+    dependsOn:
+      - containerName: migrate
+        condition: SUCCESS
+    secrets:
+      - name: DATABASE_URL
+        valueFrom: <+env.variables.database_url_secret_arn>
+    logConfiguration:
+      logDriver: awslogs
+      options:
+        awslogs-group: <+env.variables.ecs_log_group_name>
+        awslogs-region: ap-northeast-1
+        awslogs-stream-prefix: app

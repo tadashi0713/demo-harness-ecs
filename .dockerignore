@@ -9,4 +9,7 @@ test-results
 blob-report
 coverage
 e2e
+terraform
+deploy
+.harness
 *.md

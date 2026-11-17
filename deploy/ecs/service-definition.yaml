@@ -1,0 +1,24 @@
+# Harness ECS service definition, shared by stg (rolling) and prod (canary).
+# The cluster and region come from the Harness infrastructure definition.
+# For canary, Harness creates a separate canary service from this definition that joins the same target group.
+serviceName: room-booking
+desiredCount: 1
+capacityProviderStrategy:
+  - capacityProvider: FARGATE_SPOT
+    weight: 1
+healthCheckGracePeriodSeconds: 60
+deploymentConfiguration:
+  minimumHealthyPercent: 100
+  maximumPercent: 200
+networkConfiguration:
+  awsvpcConfiguration:
+    assignPublicIp: ENABLED
+    subnets:
+      - <+env.variables.ecs_subnet_id_a>
+      - <+env.variables.ecs_subnet_id_b>
+    securityGroups:
+      - <+env.variables.ecs_security_group_id>
+loadBalancers:
+  - targetGroupArn: <+env.variables.alb_target_group_arn>
+    containerName: app
+    containerPort: 3000

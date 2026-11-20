@@ -45,7 +45,7 @@ resource "aws_vpc_security_group_egress_rule" "app_all" {
 
 resource "aws_security_group" "db" {
   name        = "${var.name}-db"
-  description = "PostgreSQL, reachable from this environment's ECS tasks and the DB DevOps runner"
+  description = "PostgreSQL, reachable from the ECS tasks of this environment and the DB DevOps runner"
   vpc_id      = var.vpc_id
   tags        = merge(var.tags, { Name = "${var.name}-db" })
 }

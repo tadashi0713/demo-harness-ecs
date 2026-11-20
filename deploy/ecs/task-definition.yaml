@@ -10,7 +10,6 @@ runtimePlatform:
   cpuArchitecture: ARM64
   operatingSystemFamily: LINUX
 executionRoleArn: <+env.variables.ecs_execution_role_arn>
-taskRoleArn: <+env.variables.ecs_task_role_arn>
 containerDefinitions:
   - name: app
     image: <+artifacts.primary.image>

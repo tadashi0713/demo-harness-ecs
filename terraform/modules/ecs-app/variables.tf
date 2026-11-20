@@ -23,6 +23,11 @@ variable "db_allowed_security_group_ids" {
   default     = []
 }
 
+variable "execution_role_arn" {
+  description = "ECS task execution role. It must be able to read the DATABASE_URL secret."
+  type        = string
+}
+
 variable "container_port" {
   type    = number
   default = 3000

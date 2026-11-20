@@ -24,8 +24,7 @@ output "db_password" {
 # Register them as Harness environment variables after apply.
 output "harness_env_variables" {
   value = {
-    ecs_execution_role_arn  = aws_iam_role.execution.arn
-    ecs_task_role_arn       = aws_iam_role.task.arn
+    ecs_execution_role_arn  = var.execution_role_arn
     ecs_log_group_name      = aws_cloudwatch_log_group.app.name
     database_url_secret_arn = aws_secretsmanager_secret.database_url.arn
     ecs_subnet_id_a         = var.public_subnet_ids[0]

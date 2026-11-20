@@ -57,6 +57,10 @@ data "aws_security_group" "dbops_runner" {
   name   = "${var.shared_name}-dbops-runner"
 }
 
+data "aws_iam_role" "ecs_execution" {
+  name = "${var.shared_name}-dbops-execution"
+}
+
 module "app" {
   source = "../../modules/ecs-app"
 
@@ -65,6 +69,7 @@ module "app" {
   public_subnet_ids             = sort(data.aws_subnets.public.ids)
   db_subnet_ids                 = sort(data.aws_subnets.db.ids)
   db_allowed_security_group_ids = [data.aws_security_group.dbops_runner.id]
+  execution_role_arn            = data.aws_iam_role.ecs_execution.arn
 }
 
 output "app_url" {

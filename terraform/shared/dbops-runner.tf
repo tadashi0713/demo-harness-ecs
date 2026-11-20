@@ -59,7 +59,8 @@ data "aws_iam_policy_document" "ecs_tasks_assume" {
   }
 }
 
-# Used by ECS to start the runner and the migration tasks.
+# Used by ECS to start the runner, the migration tasks, and the stg / prod app tasks.
+# The AWS account is at its IAM role quota, so envs/* reuse this role instead of creating their own.
 resource "aws_iam_role" "dbops_execution" {
   name               = "${var.name}-dbops-execution"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json

@@ -2,7 +2,7 @@ resource "aws_lb" "this" {
   name               = var.name
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = var.public_subnet_ids
 
   tags = var.tags
 }
@@ -12,7 +12,7 @@ resource "aws_lb_target_group" "app" {
   port                 = var.container_port
   protocol             = "HTTP"
   target_type          = "ip"
-  vpc_id               = aws_vpc.this.id
+  vpc_id               = var.vpc_id
   deregistration_delay = 30
 
   health_check {

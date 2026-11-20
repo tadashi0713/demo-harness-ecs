@@ -1,7 +1,7 @@
 pipeline:
-  name: Demo Pipeline AWS ECS
+  name: Demo Pipeline ECS
   identifier: Demo_Pipeline_AWS_ECS
-  description: CI pipeline for room-booking (Next.js + PostgreSQL) with testing, SAST, supply chain and container scanning
+  description: CI pipeline for room-booking (Next.js + PostgreSQL) with testing, SAST, supply chain, container scanning and ECS infrastructure provisioning
   projectIdentifier: tadashi
   orgIdentifier: sandbox
   tags: {}
@@ -99,27 +99,6 @@ pipeline:
                               advanced:
                                 log:
                                   level: info
-                        - step:
-                            type: Sonarqube
-                            name: Sonarqube
-                            identifier: Sonarqube
-                            spec:
-                              mode: orchestration
-                              config: default
-                              target:
-                                type: repository
-                                detection: auto
-                              advanced:
-                                log:
-                                  level: info
-                                args:
-                                  cli: "-Dsonar.organization=tadashi0713"
-                              settings:
-                                product_organization_id: tadashi0713
-                              auth:
-                                access_token: <+secrets.getValue("tadashi-sonarcloud-token")>
-                                domain: https://sonarcloud.io
-                                ssl: true
                         - step:
                             type: Snyk
                             name: Snyk SAST
@@ -305,3 +284,130 @@ pipeline:
                 - AllErrors
               action:
                 type: MarkAsFailure
+    - stage:
+        name: Provision Shared Infra
+        identifier: Provision_Shared_Infra
+        description: ""
+        type: IACM
+        spec:
+          workspace: room_booking_shared
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: IACMOpenTofuPlugin
+                  name: init
+                  identifier: init
+                  timeout: 10m
+                  spec:
+                    command: init
+              - step:
+                  type: IACMOpenTofuPlugin
+                  name: plan
+                  identifier: plan
+                  timeout: 10m
+                  spec:
+                    command: plan
+              - step:
+                  type: IACMOpenTofuPlugin
+                  name: apply
+                  identifier: apply
+                  timeout: 30m
+                  spec:
+                    command: apply
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: MarkAsFailure
+    - parallel:
+        - stage:
+            name: Provision stg Infra
+            identifier: Provision_stg_Infra
+            description: ""
+            type: IACM
+            spec:
+              workspace: room_booking_stg
+              platform:
+                os: Linux
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
+              execution:
+                steps:
+                  - step:
+                      type: IACMOpenTofuPlugin
+                      name: init
+                      identifier: init
+                      timeout: 10m
+                      spec:
+                        command: init
+                  - step:
+                      type: IACMOpenTofuPlugin
+                      name: plan
+                      identifier: plan
+                      timeout: 10m
+                      spec:
+                        command: plan
+                  - step:
+                      type: IACMOpenTofuPlugin
+                      name: apply
+                      identifier: apply
+                      timeout: 30m
+                      spec:
+                        command: apply
+            failureStrategies:
+              - onFailure:
+                  errors:
+                    - AllErrors
+                  action:
+                    type: MarkAsFailure
+        - stage:
+            name: Provision prod Infra
+            identifier: Provision_prod_Infra
+            description: ""
+            type: IACM
+            spec:
+              workspace: room_booking_prod
+              platform:
+                os: Linux
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
+              execution:
+                steps:
+                  - step:
+                      type: IACMOpenTofuPlugin
+                      name: init
+                      identifier: init
+                      timeout: 10m
+                      spec:
+                        command: init
+                  - step:
+                      type: IACMOpenTofuPlugin
+                      name: plan
+                      identifier: plan
+                      timeout: 10m
+                      spec:
+                        command: plan
+                  - step:
+                      type: IACMOpenTofuPlugin
+                      name: apply
+                      identifier: apply
+                      timeout: 30m
+                      spec:
+                        command: apply
+            failureStrategies:
+              - onFailure:
+                  errors:
+                    - AllErrors
+                  action:
+                    type: MarkAsFailure

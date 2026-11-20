@@ -10,7 +10,7 @@ resource "random_password" "db" {
 
 resource "aws_db_subnet_group" "this" {
   name       = var.name
-  subnet_ids = aws_subnet.db[*].id
+  subnet_ids = var.db_subnet_ids
   tags       = var.tags
 }
 

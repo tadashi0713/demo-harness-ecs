@@ -21,12 +21,16 @@ services:
       retries: 20
 
   migrate:
-    build:
-      <<: *build
-      target: migrator
-    image: room-booking-migrator:latest
-    environment:
-      DATABASE_URL: postgresql://booking:booking@db:5432/booking
+    image: liquibase/liquibase:4.33-alpine
+    command:
+      - --search-path=/liquibase/changelog
+      - --changelog-file=changelog.yaml
+      - --url=jdbc:postgresql://db:5432/booking
+      - --username=booking
+      - --password=booking
+      - update
+    volumes:
+      - ./db:/liquibase/changelog:ro
     depends_on:
       db:
         condition: service_healthy

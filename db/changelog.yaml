@@ -1,0 +1,24 @@
+# Liquibase changelog applied by Harness DB DevOps (stg / prod) and by the docker compose migrate service.
+# Keep prisma/schema.prisma in sync when adding changesets; Prisma is only used to generate the client.
+databaseChangeLog:
+  - changeSet:
+      id: 001-init
+      author: room-booking
+      changes:
+        - sqlFile:
+            path: changes/001_init.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql:
+            sql: DROP TABLE "Reservation"; DROP TABLE "Room";
+
+  - changeSet:
+      id: 002-seed
+      author: room-booking
+      changes:
+        - sqlFile:
+            path: changes/002_seed.sql
+            relativeToChangelogFile: true
+      rollback:
+        - sql:
+            sql: DELETE FROM "Room" WHERE "name" IN ('会議室 A', '会議室 B', '大会議室');

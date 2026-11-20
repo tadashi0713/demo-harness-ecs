@@ -16,10 +16,6 @@ COPY . .
 RUN --mount=type=secret,id=extra_ca \
     NODE_EXTRA_CA_CERTS=/run/secrets/extra_ca npx prisma generate && npm run build
 
-# One-shot job: apply migrations and seed data
-FROM builder AS migrator
-CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
-
 FROM base AS runner
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

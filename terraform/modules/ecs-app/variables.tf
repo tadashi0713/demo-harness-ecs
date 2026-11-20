@@ -3,9 +3,24 @@ variable "name" {
   type        = string
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block of the VPC (/16 recommended)"
-  type        = string
+variable "vpc_id" {
+  type = string
+}
+
+variable "public_subnet_ids" {
+  description = "Subnets for the ALB and ECS tasks (two AZs)"
+  type        = list(string)
+}
+
+variable "db_subnet_ids" {
+  description = "Subnets for RDS (two AZs)"
+  type        = list(string)
+}
+
+variable "db_allowed_security_group_ids" {
+  description = "Additional security groups allowed to reach PostgreSQL, e.g. the DB DevOps runner"
+  type        = list(string)
+  default     = []
 }
 
 variable "container_port" {

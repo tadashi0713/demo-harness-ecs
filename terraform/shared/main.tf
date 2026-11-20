@@ -1,4 +1,5 @@
-# ECR repositories shared by stg and prod. Apply this stack before the environments.
+# Resources shared by stg and prod: VPC, ECR and the Harness DB DevOps runner.
+# Apply this stack before the environments.
 
 terraform {
   required_version = ">= 1.6"
@@ -27,44 +28,40 @@ variable "aws_region" {
   default = "ap-northeast-1"
 }
 
-variable "repositories" {
-  description = "app: Dockerfile target runner, migrator: Dockerfile target migrator"
-  type        = map(string)
-  default = {
-    app      = "tadashi-demo-ecs"
-    migrator = "tadashi-demo-ecs-migrator"
-  }
+variable "name" {
+  description = "Name of the shared VPC. envs/* look up the VPC and runner security group by this name."
+  type        = string
+  default     = "room-booking"
 }
 
-resource "aws_ecr_repository" "this" {
-  for_each = var.repositories
-
-  name                 = each.value
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
+variable "vpc_cidr" {
+  type    = string
+  default = "10.10.0.0/16"
 }
 
-resource "aws_ecr_lifecycle_policy" "this" {
-  for_each = aws_ecr_repository.this
-
-  repository = each.value.name
-  policy = jsonencode({
-    rules = [{
-      rulePriority = 1
-      description  = "Keep the latest 50 images"
-      selection = {
-        tagStatus   = "any"
-        countType   = "imageCountMoreThan"
-        countNumber = 50
-      }
-      action = { type = "expire" }
-    }]
-  })
+variable "ecr_repository_name" {
+  type    = string
+  default = "tadashi-demo-ecs"
 }
 
-output "repository_urls" {
-  value = { for k, r in aws_ecr_repository.this : k => r.repository_url }
+variable "harness_account_id" {
+  type    = string
+  default = "EeRjnXTnS4GrLG5VNNJZUw"
+}
+
+variable "harness_manager_url" {
+  type    = string
+  default = "https://app.harness.io"
+}
+
+variable "dbops_runner_image" {
+  description = "DB DevOps runner image provided by Harness Support. The runner is not created while this is empty."
+  type        = string
+  default     = ""
+}
+
+variable "dbops_runner_name" {
+  description = "Delegate name shown in Harness. Use it as the delegate selector of the AWS and JDBC connectors."
+  type        = string
+  default     = "room-booking-dbops-runner"
 }

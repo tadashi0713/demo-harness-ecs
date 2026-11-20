@@ -12,8 +12,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:seed": "prisma db seed",
+    "db:migrate": "docker compose run --rm migrate",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -34,7 +33,6 @@
     "eslint-config-next": "^16.4.6",
     "prisma": "^7.10.1",
     "tailwindcss": "^4.3.5",
-    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.0"
   }

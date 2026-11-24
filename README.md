@@ -79,7 +79,7 @@ deploy/ecs/          # Harness CD 用の ECS タスク定義・サービス定�
 ```
 
 - Terraform はインフラまでを作成し、ECS サービスとタスク定義は Harness CD が `deploy/ecs/` を使ってデプロイします
-- state は Harness IaCM で管理する前提のため `backend` は定義していません。IaCM ワークスペース `room_booking_shared` (`terraform/shared`)、`room_booking_stg` (`terraform/envs/stg`)、`room_booking_prod` (`terraform/envs/prod`) を OpenTofu で使い、パイプライン Demo Pipeline ECS の CI ステージの後に shared → stg / prod (並列) の順で apply します。ワークスペースは GitHub の `main` ブランチを参照します。`envs/*` は共有 VPC と runner のセキュリティグループを名前・タグで参照するので、`shared` を先に apply します
+- 手元で `terraform/shared` → `terraform/envs/stg` / `terraform/envs/prod` の順に `terraform init && terraform apply` します。`backend` は定義していないので state は各ディレクトリのローカルファイルです。`envs/*` は共有 VPC と runner のセキュリティグループを名前・タグで参照するので、`shared` を先に apply します
 - コストを抑えるため stg と prod は 1 つの VPC を共有し、DB DevOps の runner も 1 つです。ALB・RDS・ECS クラスタ・セキュリティグループは環境ごとに分かれています
 - タスクは NAT Gateway を使わずパブリックサブネットに配置し (パブリック IP あり)、セキュリティグループで ALB からの通信のみ許可します。RDS はインターネット経路のないサブネットに配置し、同じ環境のタスクと DB DevOps runner からのみ接続できます
 - `DATABASE_URL` は Terraform が Secrets Manager に作成し、ECS がコンテナに注入します

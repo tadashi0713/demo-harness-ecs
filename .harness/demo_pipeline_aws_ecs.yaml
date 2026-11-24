@@ -1,7 +1,7 @@
 pipeline:
   name: Demo Pipeline ECS
   identifier: Demo_Pipeline_AWS_ECS
-  description: CI pipeline for room-booking (Next.js + PostgreSQL) with testing, SAST, supply chain and container scanning
+  description: CI/CD pipeline for room-booking (Next.js + PostgreSQL) with testing, SAST, supply chain, container scanning and ECS deployment to stg
   projectIdentifier: tadashi
   orgIdentifier: sandbox
   tags: {}
@@ -284,3 +284,53 @@ pipeline:
                 - AllErrors
               action:
                 type: MarkAsFailure
+    - stage:
+        name: Deploy to stg
+        identifier: Deploy_stg
+        description: Rolling deployment to the room-booking-stg ECS cluster
+        type: Deployment
+        spec:
+          deploymentType: ECS
+          service:
+            serviceRef: room_booking_ecs
+            serviceInputs:
+              serviceDefinition:
+                type: ECS
+                spec:
+                  artifacts:
+                    primary:
+                      sources:
+                        - identifier: room_booking_ecr
+                          type: Ecr
+                          spec:
+                            tag: <+pipeline.executionId>
+          environment:
+            environmentRef: stg_ecs
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: room_booking_stg
+          execution:
+            steps:
+              - step:
+                  name: ECS Rolling Deploy
+                  identifier: EcsRollingDeploy
+                  type: EcsRollingDeploy
+                  timeout: 15m
+                  spec:
+                    sameAsAlreadyRunningInstances: false
+                    forceNewDeployment: false
+            rollbackSteps:
+              - step:
+                  name: ECS Rolling Rollback
+                  identifier: EcsRollingRollback
+                  type: EcsRollingRollback
+                  timeout: 10m
+                  spec: {}
+        delegateSelectors:
+          - tadashi-demo-aws-delegate
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

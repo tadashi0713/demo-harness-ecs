@@ -91,10 +91,11 @@ deploy/ecs/          # Harness CD 用の ECS タスク定義・サービス定�
 
 マイグレーションは Harness DB DevOps が ECS Fargate 上の runner から実行します。DB DevOps の DB Schema には、このリポジトリの `db/changelog.yaml` を指定します。
 
-1. Harness Support に機能フラグ `CDS_ENABLE_ECS_CONTAINER_STEP_GROUP_INFRA` / `CDS_INIT_CONTAINER_V2_ASYNC_STEP` の有効化と runner イメージの提供を依頼します
-2. `terraform/shared` を apply し、出力 `delegate_token_secret_arn` の Secrets Manager シークレットに Harness の delegate トークンを設定します
-3. 変数 `dbops_runner_image` に runner イメージを指定して `terraform/shared` を再度 apply すると runner が起動します (空のままだと runner は作成されません)
+1. 機能フラグ `CDS_ENABLE_ECS_CONTAINER_STEP_GROUP_INFRA` / `CDS_INIT_CONTAINER_V2_ASYNC_STEP` が有効であることを確認します (Container Step Group の実行環境に Amazon ECS が表示されれば前者は有効です)
+2. 出力 `delegate_token_secret_arn` の Secrets Manager シークレットに Harness の delegate トークンを設定します
+3. `terraform/shared` を apply すると、公開の delegate イメージ (変数 `dbops_runner_image`) で runner が起動します。空にすると runner は作成されません。トークンを apply 後に設定した場合は `aws ecs update-service --cluster room-booking-dbops --service room-booking-dbops-runner --force-new-deployment` で起動し直します
 4. Harness で「Assume IAM Role on Delegate」の AWS コネクタと、各環境の JDBC コネクタ (`terraform output jdbc_url` / `db_username` / `db_password`) を作成し、どちらも delegate selector に runner 名 (`room-booking-dbops-runner`) を指定します
+5. DB Schema (`db/changelog.yaml`) と環境ごとの DB Instance を作成します。パイプラインのデプロイステージでは、ECS タスクのデプロイ前に `DBSchemaApply` ステップを実行します。ステップグループの実行環境は Amazon ECS (`ECSDirect`) で、AWS コネクタと delegate selector に runner を指定します
 
 ### Harness CD の設定
 

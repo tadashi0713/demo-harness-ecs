@@ -113,7 +113,8 @@ data "aws_iam_policy_document" "dbops_runner" {
     resources = [aws_iam_role.dbops_execution.arn, aws_iam_role.dbops_runner.arn]
   }
   statement {
-    actions   = ["ec2:DescribeNetworkInterfaces", "ec2:DescribeSubnets", "ec2:DescribeSecurityGroups"]
+    # DescribeRegions is used by the Harness AWS connector test.
+    actions   = ["ec2:DescribeNetworkInterfaces", "ec2:DescribeSubnets", "ec2:DescribeSecurityGroups", "ec2:DescribeRegions"]
     resources = ["*"]
   }
   statement {
@@ -156,6 +157,7 @@ resource "aws_ecs_task_definition" "dbops_runner" {
       { name = "ACCOUNT_ID", value = var.harness_account_id },
       { name = "MANAGER_HOST_AND_PORT", value = var.harness_manager_url },
       { name = "DELEGATE_NAME", value = var.dbops_runner_name },
+      { name = "DELEGATE_TYPE", value = "DOCKER" },
       { name = "NEXT_GEN", value = "true" },
     ]
     secrets = [

@@ -50,14 +50,15 @@ variable "harness_account_id" {
 }
 
 variable "harness_manager_url" {
-  type    = string
-  default = "https://app.harness.io"
+  description = "Manager endpoint of the Harness cluster that hosts the account (this account is on Prod2)."
+  type        = string
+  default     = "https://app.harness.io/gratis"
 }
 
 variable "dbops_runner_image" {
-  description = "DB DevOps runner image provided by Harness Support. The runner is not created while this is empty."
+  description = "Immutable Harness delegate image for the DB DevOps runner (https://hub.docker.com/r/harness/delegate/tags). The runner is not created while this is empty."
   type        = string
-  default     = ""
+  default     = "harness/delegate:26.11.90411"
 }
 
 variable "dbops_runner_name" {

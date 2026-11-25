@@ -311,6 +311,27 @@ pipeline:
               - identifier: room_booking_stg
           execution:
             steps:
+              - stepGroup:
+                  name: DB Migration
+                  identifier: DB_Migration
+                  steps:
+                    - step:
+                        type: DBSchemaApply
+                        name: Apply Schema
+                        identifier: Apply_Schema
+                        timeout: 15m
+                        spec:
+                          connectorRef: account.harnessImage
+                          dbSchema: room_booking
+                          dbInstance: stg
+                          tag: <+pipeline.sequenceId>
+                  stepGroupInfra:
+                    type: ECSDirect
+                    spec:
+                      connectorRef: room_booking_dbops_runner
+                      region: ap-northeast-1
+                  delegateSelectors:
+                    - room-booking-dbops-runner
               - step:
                   name: ECS Rolling Deploy
                   identifier: EcsRollingDeploy
